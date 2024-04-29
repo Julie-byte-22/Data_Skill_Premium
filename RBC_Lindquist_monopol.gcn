@@ -1,0 +1,146 @@
+options
+{
+	output logfile = FALSE;
+	output LaTeX = FALSE;
+};
+
+
+block HOUSEHOLD
+{
+	definitions
+	{
+		u[] = (1-psi) * u * log(c_u[]^alpha * (1-h_u[])^(1-alpha)) +
+                 psi  * s * log(c_s[]^alpha * (1-h_s[])^(1-alpha));
+	};
+
+	controls
+	{
+		c_u[], c_s[], h_u[], h_s[], K_e[], K_s[], I_e[], I_s[];
+	};
+
+	objective
+	{
+		U[] = u[] + beta * E[][U[1]];
+	};
+
+	constraints
+	{
+		u * c_u[] + s * c_s[] + I_e[] + I_s[] = 
+			r_e[] * K_e[-1] + 
+			r_s[] * K_s[-1] + 
+			w_u[] * u * h_u[] +
+			w_s[] * s * h_s[] +
+            div_y[] : lambda[];
+
+        K_s[] = (1 - delta_s) * K_s[-1] + I_s[] : lambda_2[];
+        K_e[] = (1 - delta_e) * K_e[-1] + q[] * I_e[] : lambda_3[];
+	};
+
+	calibration
+	{
+		s = 0.47;
+        u = 0.53; 
+        psi = 0.589;
+        alpha = 0.611;
+        beta  = 0.9875;
+		delta_s = 0.014;
+        delta_e = 0.031;
+	};
+};
+
+block BUNDLING_FIRM
+{
+    identities
+    {
+        # Perfect competition
+         Y_t[] = N^((sigma) / (sigma-1)) * Y_j[]; 
+         P_j[] = N^(1 / (sigma - 1));
+    };
+
+    calibration
+    {
+        N = 1;
+        sigma = 4;
+    };
+};
+
+
+block INTERMEDIARY_FIRM
+{
+    controls
+    {
+        K_e[-1], K_s[-1], h_u[], h_s[], Q[], S[];
+    };
+
+    objective
+    {
+        TC_j[] = -(r_e[] * K_e[-1] + r_s[] * K_s[-1] + w_u[] * u * h_u[] + w_s[] * s * h_s[]);
+    };
+
+   constraints
+    {
+        Y_j[] = z[] * K_s[-1]^theta * Q[]^(1-theta): mc_y[];
+        Q[] = (mu * (u * h_u[])^nu + (1-mu) * S[]^nu)^(1 / nu) : mc_q[];
+        S[] = (lda * (K_e[-1])^phi + (1 - lda) * (s * h_s[])^phi)^(1 / phi) : mc_s[];
+    };
+
+
+    identities
+    {
+        # Monopolistic competition
+        mc_y[] = (sigma-1)/sigma * P_j[]; 
+        div_y[] = Y_j[] * P_j[] + TC_j[];
+
+    };
+
+    calibration
+    {
+        theta = 0.13;
+        mu = 0.413;
+        nu = 0.401;
+        phi = -0.495;
+        lda = 0.553;
+        sigma = 4;
+        N = 1;
+    };
+};
+
+
+block TECHNOLOGY_SHOCKS
+{
+    identities
+    {
+        log(z[]) = rho_z * log(z[-1]) + epsilon_z[];
+        log(q[]) = rho_q * log(q[-1]) + epsilon_q[];
+    };
+
+    shocks
+    {
+        epsilon_z[] ~ N(mean=0, sd=sigma_epsilon_z);
+        epsilon_q[] ~ N(mean=0, sd=sigma_epsilon_q);
+    };
+
+    calibration
+    {
+		rho_z = 0.64;
+		sigma_epsilon_z = 0.0038;
+        rho_q = 0.95;
+        sigma_epsilon_q = 0.0076
+    };
+};
+
+
+block variables
+{
+    identities
+    {
+        C[] = c_u[] * u + c_s[] * s;
+        H[] = h_u[] * u + h_s[] * s;
+        I[] = I_e[] + I_s[];
+        K[] = K_e[-1] + K_s[-1];
+        skill_p[] = w_s[]/w_u[];
+        equip_skill[] = K_e[-1]/(s*h_s[]);
+        rel_hours[] = (u*h_u[])/(s*h_s[]);
+    };
+};
+
